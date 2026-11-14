@@ -4,6 +4,14 @@
 
 > 4 系内核怎么能没有 KSU 呢？本仓库一键拉取源码、自动集成 KSU-Next、编译内核、打包 AK3 卡刷包。
 
+## ⚠️ 编译环境要求
+
+**推荐**: Ubuntu 22.04+ 虚拟机或实体机 (x86_64)
+
+**不建议**: Termux / proot / chroot —— 内核编译需要完整 glibc，Termux 的 bionic libc 会导致各种编译错误，且性能极差。
+
+---
+
 ## 设备信息
 
 | 项目 | 值 |
@@ -36,11 +44,9 @@
 
 ---
 
-## 一键编译（推荐）
+## 一键编译
 
 ### 前置环境
-
-- Ubuntu 20.04/22.04 x86_64
 
 ```bash
 sudo apt update && sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev zip python3 git wget unzip
@@ -56,7 +62,7 @@ cd mix2s-polaris-ksu-next-ak3
 # 2. 一键下载所有依赖（内核源码 + KSU-Next + 工具链，约3GB）
 bash setup.sh
 
-# 3. 一键编译 + 打包
+# 3. 一键集成 + 编译 + 打包
 bash build.sh
 ```
 
@@ -87,19 +93,23 @@ mix2s-polaris-ksu-next-ak3/
 
 ### setup.sh 做了什么
 
-1. 克隆 [LineageOS sdm845 内核](https://github.com/LineageOS/android_kernel_xiaomi_sdm845) (lineage-22.2)
-2. 克隆 [KernelSU-Next v3.4.2](https://github.com/KernelSU-Next/KernelSU-Next)
-3. 克隆 [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
-4. 下载 AOSP GCC 4.9 (aarch64 + arm) 交叉编译器
-5. 下载 Android NDK r21e (提供 clang)
+1. 检测环境（拒绝 Termux/proot）
+2. 克隆 [LineageOS sdm845 内核](https://github.com/LineageOS/android_kernel_xiaomi_sdm845) (lineage-22.2)
+3. 克隆 [KernelSU-Next v3.4.2](https://github.com/KernelSU-Next/KernelSU-Next)
+4. 克隆 [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
+5. 下载 AOSP GCC 4.9 (aarch64 + arm) 交叉编译器
+6. 下载 Android NDK r21e (提供 clang)
+
+> 已有依赖自动检测跳过，版本不匹配自动重新下载。
 
 ### build.sh 做了什么
 
-1. 运行 `integrate_ksu_next.py` 把 KSU-Next 源码集成进内核树
-2. `make vendor/xiaomi/mi845_defconfig` + 追加 `polaris.config`
-3. 强制 `CONFIG_KSU_MANUAL_HOOK=y`，关闭 `CONFIG_CC_WERROR`
-4. `make dtbs` + `make Image.gz-dtb -j$(nproc)`
-5. 打包 AnyKernel3 zip
+1. 前置检查（内核/工具链/配置文件是否就绪）
+2. 检测 KSU 是否已集成，已集成则跳过
+3. `make vendor/xiaomi/mi845_defconfig` + 追加 `polaris.config`
+4. 强制 `CONFIG_KSU_MANUAL_HOOK=y`，关闭 `CONFIG_CC_WERROR`
+5. `make dtbs` + `make Image.gz-dtb -j$(nproc)`
+6. 打包 AnyKernel3 zip
 
 ### integrate_ksu_next.py 补丁说明
 
