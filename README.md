@@ -26,11 +26,14 @@
 
 ## 预编译发行版下载
 
-**[点此下载 AK3 卡刷包](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip)**
-
-| 文件 | 大小 | SHA256 |
+| 文件 | 大小 | 说明 |
 |---|---|---|
-| KernelSU-Next-33355-polaris-LOS22.2-AK3.zip | 18,733,994 bytes | `e357009611a9e8c204f71bcf71dbdf3cb43cfe3a4e42cdc8ce11a38cd166439c` |
+| [KernelSU-Next-33355-polaris-LOS22.2-AK3.zip](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip) | 18.7 MB | AK3 卡刷包 |
+| [KernelSU_Next_v3.4.2_33355-release.apk](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU_Next_v3.4.2_33355-release.apk) | 16.7 MB | KSU 管理器 APK |
+
+**AK3 zip SHA256**: `e357009611a9e8c204f71bcf71dbdf3cb43cfe3a4e42cdc8ce11a38cd166439c`
+
+**APK SHA256**: `774a5511f7034a4930e881114e202319cbdc34c5aaaa5c7c6b6d2902364e4c58`
 
 ### 刷机方法
 
@@ -38,7 +41,7 @@
 2. 重启到 Recovery (OrangeFox/TWRP)
 3. 选择「安装」→ 选中 zip → 滑动刷入
 4. 重启系统
-5. 安装 KernelSU-Next 管理器 APK（从 [KSU-Next releases](https://github.com/KernelSU-Next/KernelSU-Next/releases/tag/v3.4.2) 下载 `KernelSU_Next_v3.4.2_33355-release.apk`）
+5. 安装上面下载的 KSU 管理器 APK
 
 > 本卡刷包只替换 boot 内核段 (Image.gz-dtb)，不修改 ramdisk，保留官方 DTB（26 个 FDT blob）。
 
