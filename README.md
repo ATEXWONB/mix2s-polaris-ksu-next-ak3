@@ -18,9 +18,13 @@
 
 ## 发行版下载
 
-预编译 AK3 卡刷包见 [Releases](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases)。
+**[点此下载 AK3 卡刷包](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip)**
 
-文件名格式：`KernelSU-Next-<版本号>-polaris-LOS22.2-AK3.zip`
+或浏览 [Releases](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases) 页面。
+
+| 文件 | 大小 | SHA256 |
+|---|---|---|
+| KernelSU-Next-33355-polaris-LOS22.2-AK3.zip | 18,733,994 bytes | `e357009611a9e8c204f71bcf71dbdf3cb43cfe3a4e42cdc8ce11a38cd166439c` |
 
 ### 刷机方法
 
@@ -88,7 +92,7 @@ mv toolchain/android-ndk-r21e toolchain/ndk-r21e
 # 克隆 KernelSU-Next v3.4.2
 git clone https://github.com/KernelSU-Next/KernelSU-Next -b v3.4.2 /path/to/KernelSU-Next
 
-# 运行集成脚本（修改下方 K 和 LC 路径）
+# 运行集成脚本（修改 scripts/integrate_ksu_next.py 中的 K 和 LC 路径）
 # scripts/integrate_ksu_next.py 会：
 #   1. 替换 kernel/KernelSU/kernel 为 KSU-Next 源码
 #   2. 摘除 v0.9.5 遗留的 hook 点
@@ -139,7 +143,7 @@ python3 scripts/rebuild_boot.py <官方boot.img> <新Image.gz-dtb> <输出.img>
 │   ├── integrate_ksu_next.py  # KSU-Next 源码集成 + hook 补丁脚本
 │   ├── build_kernel_next.sh   # 内核编译脚本 (defconfig + make Image.gz-dtb)
 │   ├── build_ak3_next.sh      # AK3 卡刷包打包脚本
-│   └── rebuild_boot.py         # boot.img 重建工具（仅替换内核段）
+│   └── rebuild_boot.py        # boot.img 重建工具（仅替换内核段）
 └── ak3/
     └── anykernel.sh           # polaris 专用 AnyKernel3 配置
 ```
