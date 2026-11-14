@@ -1,80 +1,93 @@
-# mix2s-polaris-ksu-next-ak3
+﻿# mix2s-polaris-ksu-next-ak3
 
-为 **小米 MIX 2S (polaris / sdm845)** 在 **LineageOS 22.2** (Linux 4.9.337) 上适配编译的 **KernelSU-Next v3.4.2** AnyKernel3 卡刷包。
+给 **小米 MIX 2S (polaris / sdm845)** 的 **LineageOS 22.2（Linux 4.9.337）** 内核适配编译的 **KernelSU-Next v3.4.2** AnyKernel3 卡刷包，附完整一键编译脚本。
 
-> 4 系内核怎么能没有 KSU 呢？本仓库一键拉取源码、自动集成 KSU-Next、编译内核、打包 AK3 卡刷包。
+> 4 系内核怎么能没有 KSU 呢？
 
-## ⚠️ 编译环境要求
+## ⚠️ 编译环境
 
-**推荐**: Ubuntu 22.04+ 虚拟机或实体机 (x86_64)
+| | |
+|---|---|
+| **推荐** | Ubuntu 22.04 / 24.04，x86_64，虚拟机或实体机，4 核 8G 以上 |
+| **不建议** | Termux / proot / chroot —— 内核编译需要完整 glibc 和系统调用，bionic libc 会各种报错，而且极慢 |
+| **磁盘** | 至少 15 GB 空闲（内核源码 1 GB + 工具链 3 GB + 编译中间产物 4~6 GB） |
 
-**不建议**: Termux / proot / chroot —— 内核编译需要完整 glibc，Termux 的 bionic libc 会导致各种编译错误，且性能极差。
+脚本会自动检测 Termux/proot 并直接拒绝编译。
 
 ---
 
-## 设备信息
+## 预编译发行版
 
-| 项目 | 值 |
-|---|---|
-| 设备 | Xiaomi Mi MIX 2S (polaris) |
-| SoC | Qualcomm SDM845 |
-| ROM | LineageOS 22.2 |
-| 内核版本 | Linux 4.9.337 (msm-4.9) |
-| KSU 版本 | KernelSU-Next v3.4.2 (33355, manual hook) |
-| 编译器 | Android NDK clang r21e (9.0.9) + AOSP GCC 4.9 binutils |
-| 补丁模式 | CONFIG_KSU_MANUAL_HOOK=y (无 kprobes) |
-
-## 预编译发行版下载
+Release 页：[v3.4.2-33355-polaris-los22.2](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/tag/v3.4.2-33355-polaris-los22.2)
 
 | 文件 | 大小 | 说明 |
 |---|---|---|
-| [KernelSU-Next-33355-polaris-LOS22.2-AK3.zip](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip) | 18.7 MB | AK3 卡刷包 |
-| [KernelSU_Next_v3.4.2_33355-release.apk](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU_Next_v3.4.2_33355-release.apk) | 16.7 MB | KSU 管理器 APK |
+| [KernelSU-Next-33355-polaris-LOS22.2-AK3.zip](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip) | 18.7 MB | AK3 卡刷包（刷内核） |
+| [KernelSU_Next_v3.4.2_33355-release.apk](https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3/releases/download/v3.4.2-33355-polaris-los22.2/KernelSU_Next_v3.4.2_33355-release.apk) | 16.7 MB | KSU 管理器 APK（装这个授权 root） |
 
-**AK3 zip SHA256**: `e357009611a9e8c204f71bcf71dbdf3cb43cfe3a4e42cdc8ce11a38cd166439c`
+SHA256：
+```
+AK3 : e357009611a9e8c204f71bcf71dbdf3cb43cfe3a4e42cdc8ce11a38cd166439c
+APK : 774a5511f7034a4930e881114e202319cbdc34c5aaaa5c7c6b6d2902364e4c58
+```
 
-**APK SHA256**: `774a5511f7034a4930e881114e202319cbdc34c5aaaa5c7c6b6d2902364e4c58`
+### 刷机步骤
 
-### 刷机方法
+1. 下载 AK3 zip 放手机存储
+2. 进 Recovery（OrangeFox / TWRP），安装 → 选中 zip → 刷入
+3. 重启进系统
+4. 安装同页的 KSU 管理器 APK，打开确认显示「已安装 / 工作中」
 
-1. 下载 AK3 zip 到手机存储
-2. 重启到 Recovery (OrangeFox/TWRP)
-3. 选择「安装」→ 选中 zip → 滑动刷入
-4. 重启系统
-5. 安装上面下载的 KSU 管理器 APK
+> 本包只替换 boot 的内核段（`Image.gz-dtb`，内含 26 个平台 DTB），不动 ramdisk，不改 boot header，保留原厂 DTB 布局。
+> 刷之前建议先备份当前 boot 分区。
 
-> 本卡刷包只替换 boot 内核段 (Image.gz-dtb)，不修改 ramdisk，保留官方 DTB（26 个 FDT blob）。
+---
+
+## 设备 / 编译信息
+
+| 项目 | 值 |
+|---|---|
+| 设备 | Xiaomi Mi MIX 2S（polaris） |
+| SoC | Qualcomm SDM845 |
+| ROM | LineageOS 22.2 |
+| 内核 | Linux 4.9.337（msm-4.9，LineageOS `android_kernel_xiaomi_sdm845` lineage-22.2） |
+| KSU | KernelSU-Next v3.4.2（versionCode 33355） |
+| Hook 模式 | manual hook（`CONFIG_KSU_MANUAL_HOOK=y`，KPROBES 关闭） |
+| 编译链 | NDK r21e clang 9.0.9 + AOSP GCC 4.9 binutils |
+| defconfig | `vendor/xiaomi/mi845_defconfig` + `config/polaris.config` |
 
 ---
 
 ## 一键编译
 
-### 前置环境
-
 ```bash
-sudo apt update && sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev zip python3 git wget unzip
-```
+# 1. 装基础依赖
+sudo apt update
+sudo apt install -y build-essential libncurses-dev bison flex libssl-dev \
+     libelf-dev zip unzip python3 git curl bc
 
-### 两步编译
-
-```bash
-# 1. 克隆本仓库
+# 2. 拉仓库
 git clone https://github.com/ATEXWONB/mix2s-polaris-ksu-next-ak3.git
 cd mix2s-polaris-ksu-next-ak3
 
-# 2. 一键下载所有依赖（内核源码 + KSU-Next + 工具链，约3GB）
+# 3. 下依赖（内核 166MB + AK3 + GCC4.9 + NDK 1.1GB，约 1.4GB；KSU 源码已随仓库提供）
 bash setup.sh
 
-# 3. 一键集成 + 编译 + 打包
+# 4. 一键集成 + 编译 + 打包
 bash build.sh
 ```
 
-编译完成后，产物在 `dist/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip`。
+产物：`dist/KernelSU-Next-33355-polaris-LOS22.2-AK3.zip`
 
-> **国内用户**：`setup.sh` 中的 git clone 可改用清华镜像加速：
-> ```bash
-> git clone https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/android_kernel_xiaomi_sdm845.git -b lineage-22.2 kernel
-> ```
+### 国内网络
+
+GitHub 直连不稳时，可以给脚本一个代理：
+
+```bash
+PROXY=socks5h://127.0.0.1:1080 bash setup.sh
+```
+
+`setup.sh` 内置了镜像兜底顺序：直连 → `gh-proxy.com` → `ghfast.top` → `ghproxy.net`，且下载中断会断点续传。NDK 走 `dl.google.com`（国内一般较快），失败会打印手动下载地址。
 
 ---
 
@@ -82,58 +95,52 @@ bash build.sh
 
 ```
 mix2s-polaris-ksu-next-ak3/
-├── README.md                       # 本文件
-├── setup.sh                        # 一键下载依赖（内核/KSU-Next/工具链/AK3）
-├── build.sh                        # 一键集成+编译+打包
-├── config/
-│   └── polaris.config              # polaris 设备专属 defconfig 追加项
+├── setup.sh                          # 下载内核源码 / AK3 / 工具链（带检测+断点续传+镜像兜底）
+├── build.sh                          # 集成 + 编译 + 打包，全程校验
+├── ksu-src/kernel/                   # KernelSU-Next 内核侧源码（legacy 分支 + 4.9 适配，已随仓库固定）
+├── patches/
+│   └── ksu-next-4.9-lineage-22.2.patch   # KSU 内核补丁（hook / Kconfig / 头文件 shim / defconfig）
 ├── scripts/
-│   ├── integrate_ksu_next.py      # KSU-Next v3.4.2 源码集成 + hook 补丁
-│   └── rebuild_boot.py            # boot.img 重建工具（可选，直接修补boot镜像）
+│   ├── apply_ksu.py                  # 应用补丁 + 部署 KSU 源码 + 建软链 + 校验（幂等）
+│   └── rebuild_boot.py               # 可选：直接把 Image.gz-dtb 塞回 boot.img
+├── config/
+│   └── polaris.config                # polaris 设备专属配置（触摸/指纹/机型）
 └── ak3/
-    └── anykernel.sh                # polaris 专用 AnyKernel3 配置
+    └── anykernel.sh                  # polaris 专用 AnyKernel3 脚本
 ```
 
-### setup.sh 做了什么
+## 集成方式（和别的 KSU 内核包有什么不同）
 
-1. 检测环境（拒绝 Termux/proot）
-2. 克隆 [LineageOS sdm845 内核](https://github.com/LineageOS/android_kernel_xiaomi_sdm845) (lineage-22.2)
-3. 克隆 [KernelSU-Next v3.4.2](https://github.com/KernelSU-Next/KernelSU-Next)
-4. 克隆 [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
-5. 下载 AOSP GCC 4.9 (aarch64 + arm) 交叉编译器
-6. 下载 Android NDK r21e (提供 clang)
+LineageOS 的 msm-4.9 树没有 GKI，也没有可用的 kprobe hook，所以走 **manual hook**：
 
-> 已有依赖自动检测跳过，版本不匹配自动重新下载。
+1. `patches/ksu-next-4.9-lineage-22.2.patch` 打 19 处改动：
+   - `fs/exec.c`：`ksu_handle_execveat` 挂到 `do_execveat_common`
+   - `kernel/sys.c`：`ksu_handle_setresuid`
+   - `kernel/reboot.c`：`ksu_handle_sys_reboot`
+   - `fs/open.c` / `fs/stat.c` / `fs/namespace.c` / `fs/internal.h`：kernelsu 需要的内部接口导出
+   - `security/selinux/*`：KSU su 域与策略hook
+   - `drivers/Kconfig` + `drivers/Makefile`：挂载 `drivers/kernelsu`
+   - `include/linux/{compiler_types,hex,pgtable,seccomp}.h` + 5 个 `sched/*.h` shim：4.9 缺的 5.x 头文件
+   - `mi845_defconfig`：`CONFIG_KSU=y`
+2. `ksu-src/kernel`（仓库内置的 legacy 分支源码，已做 4.9 兼容：`compiler_types.h` 等按内核版本条件包含）复制到 `kernel/KernelSU/kernel`
+3. `kernel/drivers/kernelsu` 软链到 `../KernelSU/kernel`
 
-### build.sh 做了什么
+`apply_ksu.py` 是幂等的：已集成会跳过；补丁先用 `--dry-run` 校验，失败不会留半成品。
 
-1. 前置检查（内核/工具链/配置文件是否就绪）
-2. 检测 KSU 是否已集成，已集成则跳过
-3. `make vendor/xiaomi/mi845_defconfig` + 追加 `polaris.config`
-4. 强制 `CONFIG_KSU_MANUAL_HOOK=y`，关闭 `CONFIG_CC_WERROR`
-5. `make dtbs` + `make Image.gz-dtb -j$(nproc)`
-6. 打包 AnyKernel3 zip
+## 实测记录
 
-### integrate_ksu_next.py 补丁说明
+本仓库的脚本不是「写完就扔」——是在实际编译机上跑通的：
 
-| 操作 | 说明 |
-|---|---|
-| 替换源码 | 用 KSU-Next v3.4.2 的 `kernel/` 替换 `kernel/KernelSU/kernel` |
-| 摘除 hook | 删除 v0.9.5 遗留的 `vfs_read` / `devpts` / `input` hook（legacy 无实现） |
-| 补充 hook | 在 `kernel/sys.c` 加 `setresuid` hook，在 `kernel/reboot.c` 加 `sys_reboot` hook |
-| 补 shim | 补 8 个 4.9 内核缺失的头文件 (`compiler_types.h` 等) |
-
----
+- `setup.sh`：在只有内核源码 + 工具链的机器上跑，正确识别已有依赖并跳过；故意删掉 NDK 后重跑，能自动重新下载并断点续传。
+- `apply_ksu.py` + 补丁：对 GitHub 原始 `lineage-22.2` 树应用后，与人工集成成功并已编译出可用内核的树**逐字节一致**（19 个文件 diff 全 OK）。
+- `build.sh`：从干净树出发，`dtbs` + `Image.gz-dtb` + AK3 打包全流程跑通，产物可刷机（见 Release）。
 
 ## 致谢
 
-- [KernelSU](https://github.com/tiann/KernelSU) - 原作者 tiann
-- [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) - Next 分支
-- [AnyKernel3](https://github.com/osm0sis/AnyKernel3) - osm0sis
-- [LineageOS](https://github.com/LineageOS) - LOS 22.2 内核源码
+- [KernelSU](https://github.com/tiann/KernelSU) / [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
+- [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
+- [LineageOS](https://github.com/LineageOS/android_kernel_xiaomi_sdm845)
 
 ## License
 
-- KernelSU-Next: GPL-3.0
-- AnyKernel3: MIT
-- 本仓库脚本与配置: MIT
+KernelSU-Next: GPL-3.0 ｜ AnyKernel3: MIT ｜ 本仓库脚本与配置: MIT
