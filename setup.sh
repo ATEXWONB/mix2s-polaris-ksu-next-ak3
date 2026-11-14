@@ -195,8 +195,13 @@ mkdir -p toolchain
 
 gcc_ok() { # $1=dir $2=bin前缀
   [ -x "$1/bin/$2-gcc" ] || return 1
-  "$1/bin/$2-gcc" --version 2>/dev/null | head -1 | grep -q '4\.9' || return 1
-  return 0
+  # 不写成管道 + grep -q（pipefail 下 SIGPIPE 会误判）
+  local ver
+  ver="$("$1/bin/$2-gcc" --version 2>/dev/null | head -1)"
+  case "$ver" in
+    *4.9*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 if gcc_ok toolchain/gcc49 aarch64-linux-android; then
@@ -226,8 +231,12 @@ fi
 NDK_BIN="toolchain/ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
 ndk_ok() {
   [ -x "$NDK_BIN" ] || return 1
-  "$NDK_BIN" --version 2>/dev/null | head -1 | grep -q 'clang version 9' || return 1
-  return 0
+  local ver
+  ver="$("$NDK_BIN" --version 2>/dev/null | head -1)"
+  case "$ver" in
+    *"clang version 9"*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 if ndk_ok; then

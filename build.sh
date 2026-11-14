@@ -176,9 +176,10 @@ rm -f "$ZIP_OUT"
 ( cd "$AK3DIR" && zip -r9 "$ZIP_OUT" . -x '*.git*' -x '*/.*' >/dev/null )
 [ -f "$ZIP_OUT" ] || die "AK3 打包失败"
 
-# 校验 zip 里确实带了内核
-unzip -l "$ZIP_OUT" | grep -q 'Image.gz-dtb' || die "zip 内缺少 Image.gz-dtb"
-unzip -l "$ZIP_OUT" | grep -q 'anykernel.sh' || die "zip 内缺少 anykernel.sh"
+# 校验 zip 内容（不用管道 + grep -q，避免 pipefail 下 SIGPIPE 误判）
+ZIPLIST="$(unzip -Z1 "$ZIP_OUT")" || die "zip 无法读取"
+printf '%s\n' "$ZIPLIST" | grep -q '^Image\.gz-dtb$' || die "zip 内缺少 Image.gz-dtb"
+printf '%s\n' "$ZIPLIST" | grep -q '^anykernel\.sh$' || die "zip 内缺少 anykernel.sh"
 ok "AK3 卡刷包就绪"
 say ""
 
