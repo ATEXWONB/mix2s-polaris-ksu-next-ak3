@@ -1,0 +1,19 @@
+# 编译产物
+out/
+dist/
+logs/
+backup/
+
+# 自动下载的依赖（由 setup.sh 拉取）
+kernel/
+KSU-Next/
+AnyKernel3/
+toolchain/
+
+# 临时文件
+*.zip
+*.apk
+*.img
+*.dtb
+*.log
+__pycache__/
