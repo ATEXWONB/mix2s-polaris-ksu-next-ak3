@@ -3,23 +3,21 @@
 """把 KernelSU-Next v3.4.2（manual hook 模式）集成进 msm-4.9 树。
 
 做四件事：
- 1) 用 legacy 源码替换 kernel/KernelSU/kernel
- 2) 摘掉 v0.9.5 遗留的 3 个 hook 点（vfs_read / devpts / input），legacy 无对应实现
+ 1) 用 KSU-Next 源码替换 kernel/KernelSU/kernel
+ 2) 摘掉 v0.9.5 遗留的 hook 点（vfs_read / devpts / input）
  3) 补 legacy 需要的 2 个 hook 点（setresuid / sys_reboot）
  4) 补 8 个 4.9 缺失的头文件 shim
-每处修改都断言锚点存在，失败即报错退出；原文件备份到 backup/pre-v3-<ts>/patched/。
 
-使用前修改下方 K 和 LC 路径指向你的实际目录。
+使用前运行 setup.sh 下载好依赖，然后直接 python3 scripts/integrate_ksu_next.py
 """
-import os, re, shutil, sys, time
+import os, shutil, sys, time
 
-# ===== 修改为你的实际路径 =====
-K = '/root/ksu-build/kernel'                          # LineageOS 22.2 内核源码树
-LC = '/root/ksu-src/KernelSU-Next/kernel'            # KernelSU-Next v3.4.2 的 kernel/ 目录
-# ================================
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+K = os.path.join(ROOT, 'kernel')               # LineageOS 内核源码
+LC = os.path.join(ROOT, 'KSU-Next', 'kernel')  # KSU-Next v3.4.2 kernel/ 目录
 
 TS = time.strftime('%Y%m%d-%H%M%S')
-BK = '/root/ksu-build/backup/pre-v3-%s' % TS
+BK = os.path.join(ROOT, 'backup', 'pre-v3-%s' % TS)
 BAD = os.path.join(BK, 'patched')
 os.makedirs(BAD, exist_ok=True)
 
@@ -59,7 +57,6 @@ if os.path.isdir(live):
     shutil.move(live, os.path.join(BK, 'KernelSU-kernel-old'))
 os.makedirs(os.path.dirname(live), exist_ok=True)
 shutil.copytree(LC, live)
-# 同时提供 Makefile（某些 kbuild 路径优先 Makefile）
 if os.path.exists(os.path.join(live, 'Makefile')):
     os.remove(os.path.join(live, 'Makefile'))
 shutil.copy2(os.path.join(live, 'Kbuild'), os.path.join(live, 'Makefile'))
@@ -71,25 +68,25 @@ sub('fs/exec.c',
 '''#ifdef CONFIG_KSU
 extern bool ksu_execveat_hook __read_mostly;
 extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
-				void *envp, int *flags);
+\t\t\t\tvoid *envp, int *flags);
 extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-					 void *argv, void *envp, int *flags);
+\t\t\t\t void *argv, void *envp, int *flags);
 #endif''',
 '''#ifdef CONFIG_KSU
 extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
-				void *envp, int *flags);
+\t\t\t\tvoid *envp, int *flags);
 #endif''', 'exec.c extern 精简')
 
 sub('fs/exec.c',
 '''#ifdef CONFIG_KSU
-	if (unlikely(ksu_execveat_hook))
-		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
-	else
-		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
+\tif (unlikely(ksu_execveat_hook))
+\t\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+\telse
+\t\tksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
 #endif''',
 '''#ifdef CONFIG_KSU
-	/* v3.4.2: ksu_handle_execveat 内部已同时处理 ksud 与 sucompat */
-	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+\t/* v3.4.2: ksu_handle_execveat 内部已同时处理 ksud 与 sucompat */
+\tksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
 #endif''', 'exec.c 调用统一')
 
 sub('fs/read_write.c',
@@ -100,7 +97,7 @@ extern int ksu_handle_vfs_read(struct file **file_ptr);
 
 sub('fs/read_write.c',
 '''#ifdef CONFIG_KSU
-	ksu_handle_vfs_read(&file);
+\tksu_handle_vfs_read(&file);
 #endif''',
 '', 'read_write.c 删调用')
 
@@ -112,7 +109,7 @@ extern int ksu_handle_devpts(struct inode *);
 
 sub('fs/devpts/inode.c',
 '''#ifdef CONFIG_KSU
-	ksu_handle_devpts(dentry->d_inode);
+\tksu_handle_devpts(dentry->d_inode);
 #endif''',
 '', 'devpts 删调用')
 
@@ -120,14 +117,14 @@ sub('drivers/input/input.c',
 '''#ifdef CONFIG_KSU
 extern bool ksu_input_hook __read_mostly;
 extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code,
-					int *value);
+\t\t\t\tint *value);
 #endif''',
 '', 'input.c 删 extern')
 
 sub('drivers/input/input.c',
 '''#ifdef CONFIG_KSU
-	if (unlikely(ksu_input_hook))
-		ksu_handle_input_handle_event(&type, &code, &value);
+\tif (unlikely(ksu_input_hook))
+\t\tksu_handle_input_handle_event(&type, &code, &value);
 #endif
 
 ''', '', 'input.c 删调用')
@@ -137,30 +134,30 @@ print('== 3) 补 legacy 需要的 hook 点 ==')
 sub('kernel/sys.c',
 '''	retval = security_task_fix_setuid(new, old, LSM_SETID_RES);''',
 '''#ifdef CONFIG_KSU
-	{
-		extern int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid);
-		ksu_handle_setresuid(from_kuid_munged(current_user_ns(), old->uid),
-				     from_kuid_munged(current_user_ns(), new->uid));
-	}
+\t{
+\t\textern int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid);
+\t\tksu_handle_setresuid(from_kuid_munged(current_user_ns(), old->uid),
+\t\t\t\t     from_kuid_munged(current_user_ns(), new->uid));
+\t}
 #endif
-	retval = security_task_fix_setuid(new, old, LSM_SETID_RES);''', 'sys.c 加 setresuid hook')
+\tretval = security_task_fix_setuid(new, old, LSM_SETID_RES);''', 'sys.c 加 setresuid hook')
 
 sub('kernel/reboot.c',
 '''SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-		void __user *, arg)
+\t\tvoid __user *, arg)
 {
-	struct pid_namespace *pid_ns = task_active_pid_ns(current);''',
+\tstruct pid_namespace *pid_ns = task_active_pid_ns(current);''',
 '''SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
-		void __user *, arg)
+\t\tvoid __user *, arg)
 {
 #ifdef CONFIG_KSU
-	{
-		extern int ksu_handle_sys_reboot(int magic1, int magic2,
-						 unsigned int cmd, void __user **arg);
-		ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
-	}
+\t{
+\t\textern int ksu_handle_sys_reboot(int magic1, int magic2,
+\t\t\t\t\t\t unsigned int cmd, void __user **arg);
+\t\tksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
+\t}
 #endif
-	struct pid_namespace *pid_ns = task_active_pid_ns(current);''', 'reboot.c 加 sys_reboot hook')
+\tstruct pid_namespace *pid_ns = task_active_pid_ns(current);''', 'reboot.c 加 sys_reboot hook')
 
 print('== 4) 补 4.9 缺失头文件 shim ==')
 SHIMS = {
