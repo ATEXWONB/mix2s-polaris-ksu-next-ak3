@@ -24,6 +24,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 K = os.path.join(ROOT, 'kernel')
 KSU_SRC = os.path.join(ROOT, 'ksu-src', 'kernel')   # 本仓库内置的 KSU 源码（非 GKI 4.9 适配版）
 PATCH = os.path.join(ROOT, 'patches', 'ksu-next-4.9-lineage-22.2.patch')
+# manual hook 专用：把 fs/read_write.c 的 vfs_read 接到 KSU，使 init 读取 init.rc
+# 时注入 KERNEL_SU_RC，ksud post-fs-data 因此在 zygote 启动前执行（模块/zygisk 首启即生效）
+PATCH_VFS_READ = os.path.join(ROOT, 'patches', 'ksu-vfs-read-hook.patch')
 
 RED, GRN, YLW, RST = '\033[31m', '\033[32m', '\033[33m', '\033[0m'
 
@@ -68,6 +71,9 @@ def already_integrated():
     """三个特征都要满足才算已集成"""
     fexec = os.path.join(K, 'fs', 'exec.c')
     if not os.path.isfile(fexec) or 'ksu_handle_execveat' not in read(fexec):
+        return False
+    frw = os.path.join(K, 'fs', 'read_write.c')
+    if not os.path.isfile(frw) or 'ksu_handle_vfs_read' not in read(frw):
         return False
     if not os.path.exists(os.path.join(K, 'KernelSU', 'kernel', 'Kbuild')):
         return False
@@ -126,6 +132,20 @@ def main():
         die('补丁应用失败。')
     ok('补丁应用完成')
 
+    # ---- 1b) vfs_read hook（manual hook 模式下 init.rc 注入的关键）----
+    log('  1b) 应用 vfs_read hook 补丁...')
+    if not os.path.isfile(PATCH_VFS_READ):
+        die('补丁文件缺失: %s' % PATCH_VFS_READ)
+    rc, out = run(['patch', '-p1', '--dry-run', '--forward', '-i', PATCH_VFS_READ], cwd=K)
+    if rc != 0:
+        print(out)
+        die('vfs_read 补丁 dry-run 失败：fs/read_write.c 与预期不一致。')
+    rc, out = run(['patch', '-p1', '--forward', '-i', PATCH_VFS_READ], cwd=K)
+    if rc != 0:
+        print(out)
+        die('vfs_read 补丁应用失败。')
+    ok('vfs_read hook 已接入')
+
     # 清理 patch 备份文件
     for dirpath, _dirnames, filenames in os.walk(K):
         for fn in filenames:
@@ -164,6 +184,7 @@ def main():
     log('  4) 校验集成结果...')
     checks = [
         ('fs/exec.c hook', 'ksu_handle_execveat', os.path.join(K, 'fs', 'exec.c')),
+        ('fs/read_write.c hook', 'ksu_handle_vfs_read', os.path.join(K, 'fs', 'read_write.c')),
         ('kernel/sys.c hook', 'ksu_handle_setresuid', os.path.join(K, 'kernel', 'sys.c')),
         ('kernel/reboot.c hook', 'ksu_handle_sys_reboot', os.path.join(K, 'kernel', 'reboot.c')),
         ('drivers/Makefile', 'CONFIG_KSU', os.path.join(K, 'drivers', 'Makefile')),
