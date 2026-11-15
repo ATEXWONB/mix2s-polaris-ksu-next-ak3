@@ -149,6 +149,19 @@ LineageOS 的 msm-4.9 树没有 GKI，也没有可用的 kprobe hook，所以走
 3. `supercall/dispatch.c`：`do_get_info` / `do_get_info_legacy` 接入上述 kick。
 
 自查：开机后 `su -c 'dmesg | grep -i throne'`，应看到 `throne: kick scan by userspace` 和很快结束的 `throne: retry manager search #N`。
+## 开机后模块 / Zygisk Next 不生效（必须软重启）的修复
+
+现象：冷启动后模块（Zygisk Next / LSPosed 等）没有加载，得做一次软重启（只重启系统进程）才正常。
+
+原因：manual hook 构建（无 kprobes）下，`init.rc` 注入原本依赖 kprobe 拦截 `read()`；kprobes 关闭后这段失效，`KERNEL_SU_RC` 永远注入不进去 —— 于是 `ksud post-fs-data` 不再由 init 在 post-fs-data 阶段执行，而是退回到「zygote 第一次 exec 时才触发」的兜底路径。模块挂载因此晚于 zygote 启动，Zygisk 类模块首启抓不到，只能软重启补一次。
+
+修复（`patches/ksu-vfs-read-hook.patch` + `apply_ksu.py` 已内置）：
+
+- 在 `fs/read_write.c` 的 `vfs_read()` 接入 `ksu_handle_vfs_read()`（KSU 源码里本就预留了这个 manual hook 接入点）；
+- init 读取 `init.rc` 时即注入 `KERNEL_SU_RC`，init 在 `on post-fs-data` 阶段就 `exec /data/adb/ksud post-fs-data`；
+- 模块在 zygote 启动之前完成挂载，Zygisk Next / LSPosed 冷启动即可生效，无需软重启。
+
+自查：`su -c 'dmesg | grep -iE "init.rc|post-fs-data|module mounted"'`，应能看到 `read init.rc, comm: init` 与 `post-fs-data triggered`、`module mounted`。
 ## 致谢
 
 - [KernelSU](https://github.com/tiann/KernelSU) / [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
