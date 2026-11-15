@@ -378,8 +378,8 @@ out_revert_cred:
 
 static DEFINE_MUTEX(throne_lock);
 static int throne_retry_count;
-#define THRONE_RETRY_MAX 20
-#define THRONE_RETRY_INTERVAL (15 * HZ)
+#define THRONE_RETRY_MAX 100
+#define THRONE_RETRY_INTERVAL (2 * HZ)
 
 static void throne_retry_work_fn(struct work_struct *work)
 {
@@ -388,6 +388,22 @@ static void throne_retry_work_fn(struct work_struct *work)
 	track_throne(false);
 }
 static DECLARE_DELAYED_WORK(throne_retry_work, throne_retry_work_fn);
+
+/* 管理器 App 首次查询（开管理器那一刻）就提前扫一次 /data/app，
+ * 不用干等 2 秒定时器，开机后立刻打开也能尽快认定管理器。 */
+static unsigned long ksu_throne_last_kick;
+void ksu_throne_kick(void)
+{
+	if (ksu_is_manager_appid_valid())
+		return;
+	if (time_before(jiffies,
+				ksu_throne_last_kick + msecs_to_jiffies(1000)))
+		return;
+	ksu_throne_last_kick = jiffies;
+	pr_info("throne: kick scan by userspace\n");
+	schedule_delayed_work(&throne_retry_work, 0);
+}
+
 
 /* Serialize scans and keep retrying until the manager is crowned.
  * Early boot scans race with fscrypt key setup (ENOKEY); without a
