@@ -1,4 +1,4 @@
-# mix2s-polaris-ksu-next-ak3
+﻿# mix2s-polaris-ksu-next-ak3
 
 给 **小米 MIX 2S (polaris / sdm845)** 的 **LineageOS 22.2（Linux 4.9.337）** 内核适配编译的 **KernelSU-Next v3.4.2** AnyKernel3 卡刷包，附完整一键编译脚本。
 
@@ -135,33 +135,6 @@ LineageOS 的 msm-4.9 树没有 GKI，也没有可用的 kprobe hook，所以走
 - `apply_ksu.py` + 补丁：对 GitHub 原始 `lineage-22.2` 树应用后，与人工集成成功并已编译出可用内核的树**逐字节一致**（19 个文件 diff 全 OK）。
 - `build.sh`：从干净树出发，`dtbs` + `Image.gz-dtb` + AK3 打包全流程跑通，产物可刷机（见 Release）。
 
-
-## 开机后管理器「未运行」延迟的修复
-
-现象：硬重启后立刻打开管理器显示「未集成 / 未运行」，约 1~2 分钟后才显示 root 工作中。
-
-原因：内核要先「认定」哪个包是管理器（`ksu_manager_appid`），认定方式是扫描 `/data/app` 校验 APK 签名。早期启动 `/data/app` 尚不可读（SELinux / fscrypt 未就绪），扫描失败后每 **15 秒**重试一次（最多 20 次），管理器必须等某次重试成功后才被认定，于是表现成开机后一两分钟才「有 root」。
-
-修复（已包含在 `ksu-src/`，`bootfix` 卡刷包即此版本）：
-
-1. `manager/throne_tracker.c`：重试间隔 `15s → 2s`，上限 `20 → 100` 次，SELinux 一就绪即可认定；
-2. 新增 `ksu_throne_kick()`：管理器调用 `get_info` 查询时若尚未认定，立刻触发一次扫描（1 秒限流），不必干等定时器；
-3. `supercall/dispatch.c`：`do_get_info` / `do_get_info_legacy` 接入上述 kick。
-
-自查：开机后 `su -c 'dmesg | grep -i throne'`，应看到 `throne: kick scan by userspace` 和很快结束的 `throne: retry manager search #N`。
-## 开机后模块 / Zygisk Next 不生效（必须软重启）的修复
-
-现象：冷启动后模块（Zygisk Next / LSPosed 等）没有加载，得做一次软重启（只重启系统进程）才正常。
-
-原因：manual hook 构建（无 kprobes）下，`init.rc` 注入原本依赖 kprobe 拦截 `read()`；kprobes 关闭后这段失效，`KERNEL_SU_RC` 永远注入不进去 —— 于是 `ksud post-fs-data` 不再由 init 在 post-fs-data 阶段执行，而是退回到「zygote 第一次 exec 时才触发」的兜底路径。模块挂载因此晚于 zygote 启动，Zygisk 类模块首启抓不到，只能软重启补一次。
-
-修复（`patches/ksu-vfs-read-hook.patch` + `apply_ksu.py` 已内置）：
-
-- 在 `fs/read_write.c` 的 `vfs_read()` 接入 `ksu_handle_vfs_read()`（KSU 源码里本就预留了这个 manual hook 接入点）；
-- init 读取 `init.rc` 时即注入 `KERNEL_SU_RC`，init 在 `on post-fs-data` 阶段就 `exec /data/adb/ksud post-fs-data`；
-- 模块在 zygote 启动之前完成挂载，Zygisk Next / LSPosed 冷启动即可生效，无需软重启。
-
-自查：`su -c 'dmesg | grep -iE "init.rc|post-fs-data|module mounted"'`，应能看到 `read init.rc, comm: init` 与 `post-fs-data triggered`、`module mounted`。
 ## 致谢
 
 - [KernelSU](https://github.com/tiann/KernelSU) / [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
